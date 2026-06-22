@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = "http://localhost:5668";
+const API = import.meta.env.VITE_API_URL;
 
 export const getMovies = async (page = 1) => {
   const response = await axios.get(
