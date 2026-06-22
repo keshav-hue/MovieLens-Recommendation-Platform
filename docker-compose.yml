@@ -1,0 +1,57 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: movielens-db
+    restart: always
+
+    environment:
+      POSTGRES_DB: MovieLens
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: movielens-redis
+
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+
+    container_name: movielens-api
+
+    depends_on:
+      - postgres
+      - redis
+      - ml-service
+
+    ports:
+      - "5668:5668"
+
+    env_file:
+      - ./backend/.env
+
+  ml-service:
+    build: ./ml-service
+
+    container_name: movielens-ml
+
+    depends_on:
+      - postgres
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./ml-service:/app
+
+volumes:
+  postgres_data:
