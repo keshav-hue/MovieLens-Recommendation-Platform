@@ -1,13 +1,9 @@
 import pandas as pd
 import psycopg2
 
-conn = psycopg2.connect(
-    host="postgres",          
-    port="5432",
-    database="MovieLens",
-    user="postgres",
-    password="postgres"
-)
+DATABASE_URL = os.environ["DATABASE_URL"]
+
+conn = psycopg2.connect(DATABASE_URL)
 
 query = """
 SELECT
