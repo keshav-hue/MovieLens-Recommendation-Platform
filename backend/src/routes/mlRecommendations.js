@@ -26,7 +26,7 @@ router.get("/", auth, async (req, res) => {
     console.log("ML Cache MISS");
 
     const response = await axios.get(
-      `http://ml-service:8000/recommend/${userId}`
+      `${process.env.ML_SERVICE_URL}/recommend/${userId}`
     );
 
     const recommendations =
