@@ -17,7 +17,7 @@ const adminRoutes = require("./routes/admin");
 
 app.use(morgan("dev"));
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: "https://movie-lens-recommendation-platform.vercel.app",
     credentials: true,
     })
 );
