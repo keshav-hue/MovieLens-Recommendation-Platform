@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-
 import Navbar from "../components/Navbar";
-import { getMyRatings } from "../api/ratings";
+import {
+  getMyRatings,
+  deleteRating,
+} from "../api/ratings";
 
 export default function MyRatings() {
   const [ratings, setRatings] =
@@ -20,6 +22,24 @@ export default function MyRatings() {
     }
   };
 
+  const handleDelete = async (
+    movieId
+  ) => {
+    try {
+      await deleteRating(movieId);
+
+      setRatings(
+        ratings.filter(
+          (r) => r.movie_id !== movieId
+        )
+      );
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete rating");
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -28,24 +48,48 @@ export default function MyRatings() {
         <h1 className="text-3xl font-bold mb-6">
           My Ratings
         </h1>
-
+        {ratings.length === 0 && (
+          <div className="text-center text-gray-500 mt-10">
+            You haven't rated any movies yet.
+          </div>
+        )}
         <div className="space-y-4">
           {ratings.map((rating) => (
             <div
               key={rating.movie_id}
-              className="bg-white p-4 rounded-xl shadow"
+              className="bg-white p-4 rounded-xl shadow flex justify-between items-center"
             >
-              <h2 className="font-bold">
-                {rating.movie.title}
-              </h2>
+              <div>
+                <h2 className="font-bold">
+                  {rating.movie.title}
+                </h2>
 
-              <p>
-                Rating: ⭐ {rating.rating}
-              </p>
+                <p>
+                  Rating: ⭐ {rating.rating}
+                </p>
 
-              <p>
-                {rating.movie.genres}
-              </p>
+                <p>
+                  {rating.movie.genres}
+                </p>
+              </div>
+
+              <button
+                onClick={() =>
+                  handleDelete(
+                    rating.movie_id
+                  )
+                }
+                className="
+                  bg-red-500
+                  text-white
+                  px-4
+                  py-2
+                  rounded-lg
+                  hover:bg-red-600
+                "
+              >
+                Delete
+              </button>
             </div>
           ))}
         </div>

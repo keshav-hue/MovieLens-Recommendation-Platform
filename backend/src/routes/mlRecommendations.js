@@ -25,20 +25,60 @@ router.get("/", auth, async (req, res) => {
 
     console.log("ML Cache MISS");
 
-    const response = await axios.get(
-      `${process.env.ML_SERVICE_URL}/recommend/${userId}`
-    );
+    let recommendations;
 
-    const recommendations =
-      response.data;
+    try {
+      const response = await axios.get(
+        `${process.env.ML_SERVICE_URL}/recommend/${userId}`,
+        {
+          timeout: 15000,
+        }
+      );
 
-    // Get movie IDs returned by ML service
+      recommendations =
+        response.data;
+
+      console.log(
+        "ML Service Success"
+      );
+
+    } catch (mlError) {
+
+      console.log(
+        "ML Service unavailable, using fallback"
+      );
+
+      const popularMovies =
+        await prisma.Rating.groupBy({
+          by: ["movie_id"],
+
+          _count: {
+            rating: true,
+          },
+
+          orderBy: {
+            _count: {
+              rating: "desc",
+            },
+          },
+
+          take: 20,
+        });
+
+      recommendations =
+        popularMovies.map(
+          (movie) => ({
+            movieId: movie.movie_id,
+            score: "Popular Movie",
+          })
+        );
+    }
+
     const movieIds =
       recommendations.map(
         (movie) => movie.movieId
       );
 
-    // Fetch posters + metadata from PostgreSQL
     const movies =
       await prisma.Movie.findMany({
         where: {
@@ -48,23 +88,28 @@ router.get("/", auth, async (req, res) => {
         },
       });
 
-    // Create lookup map
     const movieMap = {};
 
     movies.forEach((movie) => {
       movieMap[movie.id] = movie;
     });
 
-    // Merge ML results with DB data
     const enrichedRecommendations =
       recommendations.map((rec) => ({
         ...rec,
+
+        title:
+          movieMap[rec.movieId]
+            ?.title || null,
+
         poster:
           movieMap[rec.movieId]
             ?.poster || null,
+
         genres:
           movieMap[rec.movieId]
             ?.genres || null,
+
         year:
           movieMap[rec.movieId]
             ?.year || null,
@@ -84,11 +129,12 @@ router.get("/", auth, async (req, res) => {
     res.json(result);
 
   } catch (error) {
+
     console.error(error);
 
     res.status(500).json({
       message:
-        "ML recommendation service unavailable",
+        "Recommendation service unavailable",
     });
   }
 });

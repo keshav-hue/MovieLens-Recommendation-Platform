@@ -5,6 +5,9 @@ const redis = require("../config/redis");
 
 const router = express.Router();
 
+/*
+POST /ratings
+*/
 router.post("/", auth, async (req, res) => {
   try {
     const { movieId, rating } = req.body;
@@ -40,9 +43,13 @@ router.post("/", auth, async (req, res) => {
       },
     });
 
-    // Clear recommendation cache for this user
+    // Clear recommendation caches
     await redis.del(
       `recommendations:${req.user.userId}`
+    );
+
+    await redis.del(
+      `ml:${req.user.userId}`
     );
 
     res.status(200).json({
@@ -59,6 +66,9 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+/*
+GET /ratings/me
+*/
 router.get("/me", auth, async (req, res) => {
   try {
     const ratings = await prisma.Rating.findMany({
@@ -92,6 +102,9 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
+/*
+DELETE /ratings/:movieId
+*/
 router.delete("/:movieId", auth, async (req, res) => {
   try {
     await prisma.Rating.delete({
@@ -103,9 +116,13 @@ router.delete("/:movieId", auth, async (req, res) => {
       },
     });
 
-    // Clear recommendation cache for this user
+    // Clear recommendation caches
     await redis.del(
       `recommendations:${req.user.userId}`
+    );
+
+    await redis.del(
+      `ml:${req.user.userId}`
     );
 
     res.json({
