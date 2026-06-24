@@ -178,47 +178,53 @@ router.get("/top-rated", async (req, res) => {
 });
 
 router.get("/genre/:genre", async (req, res) => {
-
   try {
-
     const genre = req.params.genre;
 
-    const movies = await prisma.Movie.findMany({
+    const cacheKey = `genre:${genre}`;
 
-      where: {
+    const cached = await redis.get(cacheKey);
 
-        genres: {
+    if (cached) {
+      console.log(`Genre Cache HIT (${genre})`);
 
-          contains: genre,
+      return res.json(
+        JSON.parse(cached)
+      );
+    }
 
+    console.log(`Genre Cache MISS (${genre})`);
+
+    const movies =
+      await prisma.Movie.findMany({
+        where: {
+          genres: {
+            contains: genre,
+          },
         },
 
-      },
+        take: 20,
 
-      take: 20,
+        orderBy: {
+          id: "asc",
+        },
+      });
 
-      orderBy: {
-
-        id: "asc",
-
-      },
-
-    });
+    await redis.setEx(
+      cacheKey,
+      86400, // 24 hours
+      JSON.stringify(movies)
+    );
 
     res.json(movies);
 
   } catch (error) {
-
     console.error(error);
 
     res.status(500).json({
-
       message: "Internal Server Error",
-
     });
-
   }
-
 });
 
 /*
@@ -228,11 +234,30 @@ router.get("/:id", async (req, res) => {
   try {
     const movieId = Number(req.params.id);
 
-    const movie = await prisma.Movie.findUnique({
-      where: {
-        id: movieId,
-      },
-    });
+    const cacheKey = `movie:${movieId}`;
+
+    const cached = await redis.get(cacheKey);
+
+    if (cached) {
+      console.log(
+        `Movie Cache HIT (${movieId})`
+      );
+
+      return res.json(
+        JSON.parse(cached)
+      );
+    }
+
+    console.log(
+      `Movie Cache MISS (${movieId})`
+    );
+
+    const movie =
+      await prisma.Movie.findUnique({
+        where: {
+          id: movieId,
+        },
+      });
 
     if (!movie) {
       return res.status(404).json({
@@ -255,17 +280,27 @@ router.get("/:id", async (req, res) => {
         },
       });
 
-    res.json({
+    const result = {
       ...movie,
 
       averageRating:
         ratingStats._avg.rating
-          ? Number(ratingStats._avg.rating)
+          ? Number(
+              ratingStats._avg.rating
+            )
           : null,
 
       ratingCount:
         ratingStats._count.rating,
-    });
+    };
+
+    await redis.setEx(
+      cacheKey,
+      86400,
+      JSON.stringify(result)
+    );
+
+    res.json(result);
 
   } catch (error) {
     console.error(error);
@@ -275,5 +310,3 @@ router.get("/:id", async (req, res) => {
     });
   }
 });
-
-module.exports = router;
