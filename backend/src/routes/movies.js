@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../prisma");
+const redis = require("../config/redis");
 
 const router = express.Router();
 
@@ -106,31 +107,37 @@ router.get("/genres", async (req, res) => {
 GET /movies/top-rated
 */
 router.get("/top-rated", async (req, res) => {
+
   try {
+    const cacheKey = "topRated";
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      console.log("Top Rated Cache HIT");
+      return res.json(
+        JSON.parse(cached)
+      );
+    }
+
+    console.log("Top Rated Cache MISS");
     const topRated = await prisma.Rating.groupBy({
       by: ["movie_id"],
-
       _avg: {
         rating: true,
       },
-
       _count: {
         rating: true,
       },
-
       orderBy: {
         _avg: {
           rating: "desc",
         },
       },
-
       take: 20,
     });
 
     const movieIds = topRated.map(
       (item) => item.movie_id
     );
-
     const movies = await prisma.Movie.findMany({
       where: {
         id: {
@@ -143,7 +150,7 @@ router.get("/top-rated", async (req, res) => {
       const movie = movies.find(
         (m) => m.id === item.movie_id
       );
-
+      
       return {
         movieId: item.movie_id,
         title: movie?.title,
@@ -154,11 +161,16 @@ router.get("/top-rated", async (req, res) => {
       };
     });
 
+    await redis.setEx(
+      cacheKey,
+      86400, // 24 hours
+      JSON.stringify(result)
+    );
     res.json(result);
 
   } catch (error) {
     console.error(error);
-
+    
     res.status(500).json({
       message: "Internal Server Error",
     });
